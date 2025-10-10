@@ -5,6 +5,11 @@
     "InternalReference": "test 1"
   },
   {
+    "Voteweight": 105,
+    "Address": "0xC8889f2a2d36eD0BBa88443F11791714b0971843",
+    "InternalReference": "test 11"
+  },
+  {
     "Voteweight": 15,
     "Address": "0xE4459c2c76B0CDFD33DE8a2635157c248a4DEeB7",
     "InternalReference": "test 2."

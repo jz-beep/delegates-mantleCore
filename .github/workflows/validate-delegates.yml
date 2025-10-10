@@ -155,12 +155,12 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            
+
             // Get validation results from previous step
             const validationResult = '${{ steps.validate.outputs.validation_result }}';
             const validationMessage = '${{ steps.validate.outputs.validation_message }}';
             const validationSuccess = '${{ steps.validate.outcome }}' === 'success';
-            
+
             try {
               if (validationSuccess && validationResult === 'passed') {
                 // Read delegates for count

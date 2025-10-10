@@ -69,6 +69,7 @@ jobs:
                   
                   errors = []
                   warnings = []
+                  addresses = set()
                   
                   for i, delegate in enumerate(delegates):
                       # Validate Voteweight field
@@ -84,6 +85,13 @@ jobs:
                           valid, result = validate_ethereum_address(delegate['Address'])
                           if not valid:
                               errors.append(f"Delegate {i+1} Address validation failed: {delegate['Address']} - {result}")
+                          else:
+                              # Check for duplicate addresses
+                              normalized_address = result.lower()
+                              if normalized_address in addresses:
+                                  errors.append(f"Delegate {i+1} has duplicate address: {delegate['Address']}")
+                              else:
+                                  addresses.add(normalized_address)
                       
                       # Validate InternalReference field (optional)
                       if 'InternalReference' in delegate and not isinstance(delegate['InternalReference'], str):
@@ -137,6 +145,7 @@ jobs:
               // Simple validation
               let isValid = true;
               let errors = [];
+              let addresses = new Set();
               
               if (!Array.isArray(delegates)) {
                 errors.push('delegates must be an array');
@@ -157,6 +166,15 @@ jobs:
                   } else if (!/^(0x)?[0-9a-fA-F]{40}$/.test(delegate.Address)) {
                     errors.push(`Delegate ${index + 1} Address is not a valid Ethereum address: ${delegate.Address}`);
                     isValid = false;
+                  } else {
+                    // Check for duplicate addresses
+                    const normalizedAddress = delegate.Address.toLowerCase();
+                    if (addresses.has(normalizedAddress)) {
+                      errors.push(`Delegate ${index + 1} has duplicate address: ${delegate.Address}`);
+                      isValid = false;
+                    } else {
+                      addresses.add(normalizedAddress);
+                    }
                   }
                 });
               }

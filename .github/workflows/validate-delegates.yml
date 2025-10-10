@@ -22,6 +22,7 @@ jobs:
 
       - name: Validate delegates.json
         id: validate
+        continue-on-error: true
         run: |
           echo "🔍 Starting validation of delegates.json file..."
 
@@ -154,13 +155,14 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-
+            
             // Get validation results from previous step
             const validationResult = '${{ steps.validate.outputs.validation_result }}';
             const validationMessage = '${{ steps.validate.outputs.validation_message }}';
-
+            const validationSuccess = '${{ steps.validate.outcome }}' === 'success';
+            
             try {
-              if (validationResult === 'passed') {
+              if (validationSuccess && validationResult === 'passed') {
                 // Read delegates for count
                 const delegates = JSON.parse(fs.readFileSync('delegates.json', 'utf8'));
                 github.rest.issues.createComment({
@@ -171,7 +173,7 @@ jobs:
                 });
               } else {
                 // Validation failed - show errors
-                const errors = validationMessage.split('|');
+                const errors = validationMessage ? validationMessage.split('|') : ['Validation failed'];
                 github.rest.issues.createComment({
                   issue_number: context.issue.number,
                   owner: context.repo.owner,
@@ -187,3 +189,9 @@ jobs:
                 body: `❌ **Validation Error**\n\n\`\`\`\n${error.message}\n\`\`\``
               });
             }
+
+      - name: Check validation result
+        if: steps.validate.outcome == 'failure'
+        run: |
+          echo "Validation failed, failing the job"
+          exit 1

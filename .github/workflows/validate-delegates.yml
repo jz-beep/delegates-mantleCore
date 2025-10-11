@@ -190,6 +190,194 @@ jobs:
               });
             }
 
+      - name: Send Lark notification
+        if: always()
+        env:
+          WEBHOOK_URL: ${{ secrets.LARK_WEBHOOK }}
+          SECRET: ${{ secrets.LARK_SECRET }}
+          VALIDATION_RESULT: ${{ steps.validate.outputs.validation_result }}
+          VALIDATION_MESSAGE: ${{ steps.validate.outputs.validation_message }}
+          VALIDATION_OUTCOME: ${{ steps.validate.outcome }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.actor }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.head_ref }}
+          EVENT_TYPE: ${{ github.event_name }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          echo "🔔 Preparing Lark notification..."
+
+          # Generate timestamp and signature
+          export TS=$(date +%s)
+          SIGN=$(python3 - <<'PY'
+          import os, base64, hmac, hashlib
+          ts = os.environ["TS"]
+          sec = os.environ["SECRET"]
+          # Lark signature: HMAC-SHA256(timestamp + "\n" + secret, "")
+          string_to_sign = '{}\n{}'.format(ts, sec)
+          hmac_code = hmac.new(string_to_sign.encode("utf-8"), digestmod=hashlib.sha256).digest()
+          sign = base64.b64encode(hmac_code).decode('utf-8')
+          print(sign)
+          PY
+          )
+          echo "✅ Signature generated: $SIGN"
+
+          # Determine notification content based on validation result
+          if [ "$VALIDATION_OUTCOME" == "success" ] && [ "$VALIDATION_RESULT" == "passed" ]; then
+            # Success notification
+            echo "📢 Sending success notification..."
+            
+            # Get delegate count for success message
+            DELEGATE_COUNT=$(python3 -c "import json; print(len(json.load(open('delegates.json'))))" 2>/dev/null || echo "N/A")
+            
+            # Set title based on event type
+            if [ "$EVENT_TYPE" == "pull_request" ]; then
+              TITLE="🟢 Ready for Review"
+            else
+              TITLE="✅ Merged to Main"
+            fi
+            
+            MESSAGE_CONTENT='{
+              "config": {
+                "wide_screen_mode": true
+              },
+              "elements": [
+                {
+                  "tag": "markdown",
+                  "content": "🏠 仓库：'${REPO}'\n🌿 分支：'${BRANCH:-main}'\n👤 操作者：'${PR_AUTHOR}'\n📝 事件：'${EVENT_TYPE}'"
+                }
+              ],
+              "header": {
+                "template": "green",
+                "title": {
+                  "content": "'${TITLE}'",
+                  "tag": "plain_text"
+                }
+              }
+            }'
+            
+            if [ "$EVENT_TYPE" == "pull_request" ] && [ -n "$PR_URL" ]; then
+            MESSAGE_CONTENT='{
+              "config": {
+                "wide_screen_mode": true
+              },
+              "elements": [
+                {
+                  "tag": "markdown",
+                  "content": "📊 验证数量：'${DELEGATE_COUNT}' 个 delegates\n🏠 仓库：'${REPO}'\n🔢 PR：#'${PR_NUMBER}'\n🌿 分支：'${BRANCH}'\n👤 作者：'${PR_AUTHOR}'\n📝 标题：'${PR_TITLE}'"
+                },
+                {
+                  "tag": "action",
+                  "actions": [
+                    {
+                      "tag": "button",
+                      "text": {
+                        "tag": "plain_text",
+                        "content": "🔗 查看 Pull Request"
+                      },
+                      "type": "primary",
+                      "multi_url": {
+                        "url": "'${PR_URL}'",
+                        "pc_url": "",
+                        "android_url": "",
+                        "ios_url": ""
+                      }
+                    }
+                  ]
+                }
+              ],
+              "header": {
+                "template": "green",
+                "title": {
+                  "content": "🟢 Ready for Review",
+                  "tag": "plain_text"
+                }
+              }
+            }'
+            fi
+            
+          else
+            # Failure notification
+            echo "📢 Sending failure notification..."
+            
+            MESSAGE_CONTENT='{
+              "config": {
+                "wide_screen_mode": true
+              },
+              "elements": [
+                {
+                  "tag": "markdown",
+                  "content": "🏠 仓库：'${REPO}'\n👤 操作者：'${PR_AUTHOR}'\n🌿 分支：'${BRANCH:-main}'\n📝 事件：'${EVENT_TYPE}'\n\n🔍 错误详情：\n- '${ERROR_DETAILS}'"
+                }
+              ],
+              "header": {
+                "template": "red",
+                "title": {
+                  "content": "❌ Delegates 验证失败",
+                  "tag": "plain_text"
+                }
+              }
+            }'
+            
+            if [ "$EVENT_TYPE" == "pull_request" ] && [ -n "$PR_URL" ]; then
+              MESSAGE_CONTENT='{
+                "config": {
+                  "wide_screen_mode": true
+                },
+                "elements": [
+                  {
+                    "tag": "markdown",
+                    "content": "🏠 仓库：'${REPO}'\n🔢 PR：#'${PR_NUMBER}'\n🌿 分支：'${BRANCH}'\n👤 作者：'${PR_AUTHOR}'\n📝 标题：'${PR_TITLE}'\n🔍 错误详情：\n- '${ERROR_DETAILS}'"
+                  },
+                  {
+                    "tag": "action",
+                    "actions": [
+                      {
+                        "tag": "button",
+                        "text": {
+                          "tag": "plain_text",
+                          "content": "🔗 查看 Pull Request"
+                        },
+                        "type": "primary",
+                        "multi_url": {
+                          "url": "'${PR_URL}'",
+                          "pc_url": "",
+                          "android_url": "",
+                          "ios_url": ""
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "header": {
+                  "template": "red",
+                  "title": {
+                    "content": "❌ Delegates 验证失败",
+                    "tag": "plain_text"
+                  }
+                }
+              }'
+            fi
+          fi
+
+          # Send notification to Lark
+          echo "📤 Sending message to Lark..."
+          curl -X POST "$WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Lark-Request-Timestamp: $TS" \
+            -H "X-Lark-Signature: $SIGN" \
+            -d "{
+              \"timestamp\": \"$TS\",
+              \"sign\": \"$SIGN\",
+              \"msg_type\": \"interactive\",
+              \"card\": ${MESSAGE_CONTENT}
+            }" \
+            --fail-with-body || echo "⚠️ Failed to send Lark notification"
+
+          echo "✅ Lark notification sent!"
+
       - name: Check validation result
         if: steps.validate.outcome == 'failure'
         run: |

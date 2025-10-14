@@ -1,21 +1,21 @@
 [
   {
-    "Voteweight": 228,
+    "Voteweight": 229,
     "Address": "0xC8889f2a2d36eD0BBa88443F11791714b0971843",
-    "InternalReference": "test 11"
+    "InternalReference": "test 11-1"
   },
   {
-    "Voteweight": 15,
+    "Voteweight": 16,
     "Address": "0xE4459c2c76B0CDFD33DE8a2635157c248a4DEeB7",
     "InternalReference": "test 2."
   },
   {
-    "Voteweight": 1000,
+    "Voteweight": 1001,
     "Address": "0x2C715BB1F9eF672e7C7D8107D3937Bef7E361a95",
     "InternalReference": "a test 3."
   },
   {
-    "Voteweight": 1000,
+    "Voteweight": 1001,
     "Address": "0x16fcf349b60262C4A87350757085784E39804810",
     "InternalReference": "Adam Xu test"
   }

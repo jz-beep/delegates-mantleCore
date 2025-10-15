@@ -1,5 +1,10 @@
 [
   {
+    "Voteweight": 5000,
+    "Address": "0x07435b1a938B21fF2b8b4484b873C45EC71fbd64",
+    "InternalReference": "test 1"
+  },
+  {
     "Voteweight": 229,
     "Address": "0xC8889f2a2d36eD0BBa88443F11791714b0971843",
     "InternalReference": "test 11-1"
